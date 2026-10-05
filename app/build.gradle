@@ -6,9 +6,11 @@ plugins {
 // damit sich neue Versionen einfach über die alte installieren lassen.
 def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1") as Integer
 
-// Signatur-Schlüssel kommt beim Bau auf GitHub aus den Repository-Geheimnissen.
-// Ohne Schlüssel (z. B. in Android Studio) wird mit dem Debug-Schlüssel signiert.
-def keystorePath = System.getenv("SIGNING_KEYSTORE")
+// Fester Signatur-Schlüssel, damit sich neue Versionen über die alte installieren
+// lassen und Einstellungen und Kontakte erhalten bleiben.
+def keystoreFile = rootProject.file("signing/mamas-telefon.p12")
+def passwordFile = rootProject.file("signing/passwort.txt")
+def hasKeystore = keystoreFile.exists() && passwordFile.exists()
 
 android {
     namespace 'de.familie.mamastelefon'
@@ -24,11 +26,12 @@ android {
 
     signingConfigs {
         release {
-            if (keystorePath) {
-                storeFile file(keystorePath)
-                storePassword System.getenv("SIGNING_PASSWORD")
+            if (hasKeystore) {
+                storeFile keystoreFile
+                storeType 'pkcs12'
+                storePassword passwordFile.text.trim()
                 keyAlias 'mama'
-                keyPassword System.getenv("SIGNING_PASSWORD")
+                keyPassword passwordFile.text.trim()
             }
         }
     }
@@ -36,7 +39,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+            signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 
