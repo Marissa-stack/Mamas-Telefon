@@ -1,0 +1,56 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Versionsnummer zählt bei jedem Bau auf GitHub automatisch hoch,
+// damit sich neue Versionen einfach über die alte installieren lassen.
+def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1") as Integer
+
+// Signatur-Schlüssel kommt beim Bau auf GitHub aus den Repository-Geheimnissen.
+// Ohne Schlüssel (z. B. in Android Studio) wird mit dem Debug-Schlüssel signiert.
+def keystorePath = System.getenv("SIGNING_KEYSTORE")
+
+android {
+    namespace 'de.familie.mamastelefon'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'de.familie.mamastelefon'
+        minSdk 26
+        targetSdk 34
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("SIGNING_PASSWORD")
+                keyAlias 'mama'
+                keyPassword System.getenv("SIGNING_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

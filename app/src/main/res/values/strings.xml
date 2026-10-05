@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mamas Telefon</string>
+    <string name="guard_label">Lautstärke-Schutz</string>
+    <string name="guard_description">Verhindert, dass Klingelton und Gesprächslautstärke versehentlich verstellt werden oder das Telefon lautlos geschaltet wird. Die Lautstärketasten werden gesperrt. Es werden keine Bildschirminhalte gelesen.</string>
+</resources>
