@@ -199,12 +199,13 @@ public class HomeActivity extends Activity {
     }
 
     static String daypart(int hour) {
-        if (hour >= 5 && hour < 10) return "Morgen";
-        if (hour >= 10 && hour < 12) return "Vormittag";
-        if (hour >= 12 && hour < 14) return "Mittag";
-        if (hour >= 14 && hour < 18) return "Nachmittag";
-        if (hour >= 18 && hour < 22) return "Abend";
-        return "Nacht";
+        // Bewusst "morgens" statt "Morgen" – sonst könnte man an den nächsten Tag denken.
+        if (hour >= 5 && hour < 10) return "morgens";
+        if (hour >= 10 && hour < 12) return "vormittags";
+        if (hour >= 12 && hour < 14) return "mittags";
+        if (hour >= 14 && hour < 18) return "nachmittags";
+        if (hour >= 18 && hour < 22) return "abends";
+        return "nachts";
     }
 
     /** 5× schnell tippen öffnet die PIN-Abfrage für die Einstellungen. */
