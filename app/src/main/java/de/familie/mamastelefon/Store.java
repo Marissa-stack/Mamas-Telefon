@@ -126,6 +126,14 @@ final class Store {
         prefs.edit().putBoolean("confirm_call", on).apply();
     }
 
+    boolean photosOn() {
+        return prefs.getBoolean("photos", true);
+    }
+
+    void setPhotosOn(boolean on) {
+        prefs.edit().putBoolean("photos", on).apply();
+    }
+
     boolean guardOn() {
         return prefs.getBoolean("guard", true);
     }

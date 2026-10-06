@@ -9,12 +9,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.ContentObserver;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.provider.MediaStore;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -22,6 +25,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -55,6 +59,8 @@ public class HomeActivity extends Activity {
     private TextView dateView;
     private TextView batteryView;
     private LinearLayout peopleBox;
+    private LinearLayout newPhotoBox;
+    private LinearLayout allPhotosBox;
     private Dialog openDialog;
     private Store.Person pendingCall;
 
@@ -67,6 +73,18 @@ public class HomeActivity extends Activity {
             updateClock();
         }
     };
+
+    private final Runnable refreshPhotos = this::renderPhotos;
+
+    /** Merkt, wenn WhatsApp ein neues Foto gespeichert hat. */
+    private final ContentObserver photoObserver = new ContentObserver(handler) {
+        @Override
+        public void onChange(boolean selfChange) {
+            handler.removeCallbacks(refreshPhotos);
+            handler.postDelayed(refreshPhotos, 1500);
+        }
+    };
+    private boolean photoObserverOn;
 
     private final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
@@ -101,6 +119,15 @@ public class HomeActivity extends Activity {
         updateClock();
         updateBattery(sticky);
         renderPeople();
+        renderPhotos();
+        if (WhatsAppPhotos.canRead(this)) {
+            try {
+                getContentResolver().registerContentObserver(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, photoObserver);
+                photoObserverOn = true;
+            } catch (RuntimeException ignored) {
+            }
+        }
         VolumeGuard.enforce(this);
     }
 
@@ -115,6 +142,17 @@ public class HomeActivity extends Activity {
             unregisterReceiver(batteryReceiver);
         } catch (RuntimeException ignored) {
         }
+        if (photoObserverOn) {
+            getContentResolver().unregisterContentObserver(photoObserver);
+            photoObserverOn = false;
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Bildschirm aus oder andere App vorne: beim nächsten Mal wieder die Startseite zeigen
+        closeDialog();
     }
 
     @Override
@@ -183,9 +221,17 @@ public class HomeActivity extends Activity {
         batteryView.setVisibility(View.GONE);
         page.addView(batteryView, Ui.fullWidth(this, 8));
 
+        // Neues WhatsApp-Foto (nur in den ersten 24 Stunden)
+        newPhotoBox = Ui.vertical(this);
+        page.addView(newPhotoBox, Ui.fullWidth(this, 0));
+
         // Kontakte
         peopleBox = Ui.vertical(this);
         page.addView(peopleBox, Ui.fullWidth(this, 8));
+
+        // Knopf "Fotos ansehen"
+        allPhotosBox = Ui.vertical(this);
+        page.addView(allPhotosBox, Ui.fullWidth(this, 0));
 
         setContentView(scroll);
     }
@@ -375,6 +421,146 @@ public class HomeActivity extends Activity {
         int m = Ui.dp(this, 6);
         lp.setMargins(m, m, m, m);
         return lp;
+    }
+
+    // ------------------------------------------------------------------ Fotos
+
+    private void renderPhotos() {
+        newPhotoBox.removeAllViews();
+        allPhotosBox.removeAllViews();
+        if (!store.hasPin() || !store.photosOn()) return;
+        List<WhatsAppPhotos.Item> items = WhatsAppPhotos.recent(this, 1);
+        if (items.isEmpty()) return;
+        WhatsAppPhotos.Item newest = items.get(0);
+
+        if (WhatsAppPhotos.isNew(newest)) {
+            LinearLayout tile = Ui.vertical(this);
+            tile.setBackground(Ui.pressable(Ui.card(this)));
+            int pad = Ui.dp(this, 12);
+            tile.setPadding(pad, pad, pad, pad);
+
+            LinearLayout head = Ui.horizontal(this);
+            head.addView(Ui.text(this, "Neues Foto", 26, Ui.GREEN, true),
+                    new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            head.addView(Ui.text(this, whenReceived(newest.receivedMs), 20, Ui.MUTED, false));
+            tile.addView(head);
+
+            ImageView img = new ImageView(this);
+            img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            Bitmap bmp = Photos.decode(this, newest.uri, 900);
+            if (bmp != null) img.setImageBitmap(bmp);
+            Ui.clipRounded(img, Ui.dp(this, 14));
+            LinearLayout.LayoutParams imgLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 210));
+            imgLp.topMargin = Ui.dp(this, 10);
+            tile.addView(img, imgLp);
+
+            tile.setOnClickListener(v -> showPhotos());
+            tile.setContentDescription("Neues Foto ansehen");
+            newPhotoBox.addView(tile, Ui.fullWidth(this, 12));
+        }
+
+        Button all = Ui.button(this, "Fotos ansehen", Ui.GREY_BUTTON, Ui.TEXT, 24);
+        all.setOnClickListener(v -> showPhotos());
+        LinearLayout.LayoutParams allLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 68));
+        allLp.topMargin = Ui.dp(this, 18);
+        allPhotosBox.addView(all, allLp);
+    }
+
+    /** "heute, 14:20", "gestern, 18:05" oder "Dienstag, 6. Oktober". */
+    private static String whenReceived(long ms) {
+        Calendar then = Calendar.getInstance();
+        then.setTimeInMillis(ms);
+        Calendar now = Calendar.getInstance();
+        String time = new SimpleDateFormat("HH:mm", DE).format(then.getTime());
+        if (sameDay(then, now)) return "heute, " + time;
+        Calendar yesterday = Calendar.getInstance();
+        yesterday.add(Calendar.DAY_OF_YEAR, -1);
+        if (sameDay(then, yesterday)) return "gestern, " + time;
+        return new SimpleDateFormat("EEEE, d. MMMM", DE).format(then.getTime());
+    }
+
+    private static boolean sameDay(Calendar a, Calendar b) {
+        return a.get(Calendar.YEAR) == b.get(Calendar.YEAR)
+                && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR);
+    }
+
+    /** Ganzseitige Foto-Ansicht mit großen Knöpfen statt Wischen. */
+    private void showPhotos() {
+        final List<WhatsAppPhotos.Item> items = WhatsAppPhotos.recent(this, 30);
+        if (items.isEmpty()) {
+            Toast.makeText(this, "Noch keine Fotos", Toast.LENGTH_LONG).show();
+            return;
+        }
+        closeDialog();
+        Dialog d = new Dialog(this, R.style.AppTheme);
+
+        LinearLayout box = Ui.vertical(this);
+        box.setBackgroundColor(0xFF000000);
+        int pad = Ui.dp(this, 12);
+        box.setPadding(pad, pad, pad, pad);
+
+        Button close = Ui.button(this, "Zurück zur Startseite", Ui.GREY_BUTTON, Ui.TEXT, 24);
+        close.setOnClickListener(v -> closeDialog());
+        box.addView(close, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 68)));
+
+        ImageView img = new ImageView(this);
+        img.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams imgLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        imgLp.topMargin = Ui.dp(this, 12);
+        imgLp.bottomMargin = Ui.dp(this, 8);
+        box.addView(img, imgLp);
+
+        TextView caption = Ui.text(this, "", 22, 0xFFFFFFFF, true);
+        caption.setGravity(Gravity.CENTER);
+        box.addView(caption, Ui.fullWidth(this, 0));
+
+        LinearLayout nav = Ui.horizontal(this);
+        Button prev = Ui.button(this, "◀ Vorheriges", 0xFF3A3A3A, 0xFFFFFFFF, 22);
+        Button next = Ui.button(this, "Nächstes ▶", 0xFF3A3A3A, 0xFFFFFFFF, 22);
+        LinearLayout.LayoutParams prevLp = new LinearLayout.LayoutParams(0, Ui.dp(this, 76), 1f);
+        prevLp.rightMargin = Ui.dp(this, 10);
+        nav.addView(prev, prevLp);
+        nav.addView(next, new LinearLayout.LayoutParams(0, Ui.dp(this, 76), 1f));
+        box.addView(nav, Ui.fullWidth(this, 12));
+
+        final int[] pos = {0};
+        final Runnable show = () -> {
+            WhatsAppPhotos.Item it = items.get(pos[0]);
+            Bitmap bmp = Photos.decode(this, it.uri, 1400);
+            img.setImageBitmap(bmp);
+            caption.setText(bmp != null ? "Bekommen: " + whenReceived(it.receivedMs)
+                    : "Dieses Foto lässt sich nicht öffnen");
+            prev.setEnabled(pos[0] > 0);
+            prev.setAlpha(pos[0] > 0 ? 1f : 0.3f);
+            next.setEnabled(pos[0] < items.size() - 1);
+            next.setAlpha(pos[0] < items.size() - 1 ? 1f : 0.3f);
+        };
+        prev.setOnClickListener(v -> {
+            if (pos[0] > 0) {
+                pos[0]--;
+                show.run();
+            }
+        });
+        next.setOnClickListener(v -> {
+            if (pos[0] < items.size() - 1) {
+                pos[0]++;
+                show.run();
+            }
+        });
+
+        d.setContentView(box);
+        if (d.getWindow() != null) {
+            d.getWindow().setStatusBarColor(0xFF000000);
+            d.getWindow().setNavigationBarColor(0xFF000000);
+            d.getWindow().getDecorView().setSystemUiVisibility(0);
+        }
+        blockVolumeKeys(d);
+        show.run();
+        showDialog(d);
     }
 
     // ----------------------------------------------------------------- Anrufen

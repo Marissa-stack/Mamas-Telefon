@@ -20,6 +20,43 @@ final class Photos {
     private Photos() {
     }
 
+    /**
+     * Lädt ein Bild verkleinert (längste Seite etwa maxSide Pixel) und richtig
+     * gedreht, z. B. ein WhatsApp-Foto zum Anzeigen. Gibt null zurück, wenn es nicht geht.
+     */
+    static Bitmap decode(Context c, Uri uri, int maxSide) {
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            try (InputStream in = c.getContentResolver().openInputStream(uri)) {
+                if (in == null) return null;
+                BitmapFactory.decodeStream(in, null, bounds);
+            }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+            int sample = 1;
+            while (Math.max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) {
+                sample *= 2;
+            }
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = sample;
+            Bitmap bmp;
+            try (InputStream in = c.getContentResolver().openInputStream(uri)) {
+                if (in == null) return null;
+                bmp = BitmapFactory.decodeStream(in, null, opts);
+            }
+            if (bmp == null) return null;
+            int rotation = readRotation(c, uri);
+            if (rotation != 0) {
+                Matrix m = new Matrix();
+                m.postRotate(rotation);
+                bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), m, true);
+            }
+            return bmp;
+        } catch (Exception | OutOfMemoryError e) {
+            return null;
+        }
+    }
+
     /** Speichert das Bild als quadratisches Foto. Gibt den Dateinamen zurück oder null. */
     static String importPhoto(Context c, Uri uri, Store store) {
         try {

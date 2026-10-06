@@ -6,10 +6,11 @@ Eine einfache Startseite für Android-Handys, gemacht für einen Menschen, der n
 - **Foto-Kacheln** zum Anrufen mit einem Tipp
 - **Nachfrage vor dem Anruf** („Anna anrufen? Ja / Nein“), abschaltbar
 - **Akku-Hinweis**, wenn das Handy aufgeladen werden muss
+- **Fotos aus WhatsApp**: Ein neues Foto erscheint 24 Stunden lang groß auf der Startseite, alle weiteren über „Fotos ansehen“ (große Knöpfe statt Wischen)
 - **Lautstärke-Schutz**: Die Lautstärketasten sind gesperrt. Lautlos, Vibration und „Nicht stören“ werden sofort wieder ausgeschaltet.
 - **Einstellungen mit PIN**: auf der Startseite **5× schnell auf die Uhr tippen**
 
-Keine Werbung, kein Konto und keine Internetverbindung. Alle Kontakte und Fotos bleiben auf dem Handy.
+Keine Werbung, kein Konto und keine Internetverbindung. Alle Kontakte und Fotos bleiben auf dem Handy. Die WhatsApp-Fotos liest die App nur aus dem Speicher des Handys, das Herunterladen erledigt WhatsApp selbst.
 
 ## Installieren
 

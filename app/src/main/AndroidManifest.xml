@@ -8,10 +8,20 @@
     <!-- "Nicht stören" wieder ausschalten dürfen -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Von WhatsApp gespeicherte Fotos auf der Startseite zeigen -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />
+
+    <!-- Damit der Knopf "WhatsApp richtig einstellen" WhatsApp öffnen kann -->
+    <queries>
+        <package android:name="com.whatsapp" />
+    </queries>
 
     <application
         android:allowBackup="false"

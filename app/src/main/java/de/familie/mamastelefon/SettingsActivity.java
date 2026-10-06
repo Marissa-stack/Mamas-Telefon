@@ -139,6 +139,7 @@ public class SettingsActivity extends Activity {
         renderPeople();
         renderVolume();
         renderCalls();
+        renderPhotos();
         renderMore();
     }
 
@@ -164,6 +165,8 @@ public class SettingsActivity extends Activity {
         statusRow(card, "Darf direkt anrufen", granted(Manifest.permission.CALL_PHONE),
                 "Erlauben", this::requestPerms);
         statusRow(card, "Darf Kontakte und Fotos übernehmen", granted(Manifest.permission.READ_CONTACTS),
+                "Erlauben", this::requestPerms);
+        statusRow(card, "Darf WhatsApp-Fotos zeigen", granted(WhatsAppPhotos.permission()),
                 "Erlauben", this::requestPerms);
         statusRow(card, "Lautstärke-Schutz eingeschaltet", isGuardServiceEnabled(),
                 "Einschalten", this::explainAccessibility);
@@ -245,7 +248,8 @@ public class SettingsActivity extends Activity {
 
     private void requestPerms() {
         requestPermissions(new String[]{
-                Manifest.permission.CALL_PHONE, Manifest.permission.READ_CONTACTS}, REQ_PERMS);
+                Manifest.permission.CALL_PHONE, Manifest.permission.READ_CONTACTS,
+                WhatsAppPhotos.permission()}, REQ_PERMS);
     }
 
     @Override
@@ -265,7 +269,7 @@ public class SettingsActivity extends Activity {
         if (blocked) {
             info("Berechtigung fehlt",
                     "Android fragt nicht mehr von selbst nach. Bitte in den App-Infos unter "
-                            + "„Berechtigungen“ Telefon und Kontakte erlauben.",
+                            + "„Berechtigungen“ Telefon, Kontakte und Fotos erlauben.",
                     this::openAppDetails, null, null);
         }
         render();
@@ -661,10 +665,49 @@ public class SettingsActivity extends Activity {
                 store.confirmCall(), store::setConfirmCall), Ui.fullWidth(this, 6));
     }
 
+    // ------------------------------------------------------------------ Fotos
+
+    private void renderPhotos() {
+        LinearLayout card = section("5. Fotos aus WhatsApp",
+                "Fotos, die ihr über WhatsApp schickt, erscheinen 24 Stunden lang groß auf der Startseite. "
+                        + "Danach bleiben sie über „Fotos ansehen“ erreichbar. Von wem ein Foto kommt, "
+                        + "kann die App nicht anzeigen.");
+        card.addView(makeSwitch("Fotos auf der Startseite zeigen", store.photosOn(),
+                store::setPhotosOn), Ui.fullWidth(this, 6));
+        Button howto = Ui.button(this, "WhatsApp richtig einstellen", Ui.GREY_BUTTON, Ui.TEXT, 18);
+        howto.setOnClickListener(v -> explainWhatsApp());
+        card.addView(howto, Ui.fullWidth(this, 10));
+    }
+
+    private void explainWhatsApp() {
+        info("WhatsApp einstellen",
+                "Damit nur eure Familienfotos erscheinen und keine weitergeleiteten Bilder aus Gruppen:\n\n"
+                        + "1. In WhatsApp oben rechts ⋮ → Einstellungen → Chats → „Medien-Sichtbarkeit“ ausschalten.\n\n"
+                        + "2. Euren Familien-Chat öffnen, oben auf den Namen tippen → „Medien-Sichtbarkeit“ → „Ja“. "
+                        + "Für jeden Familien-Chat wiederholen.\n\n"
+                        + "3. Einstellungen → Speicher und Daten → Automatischer Download: "
+                        + "bei WLAN und bei mobilen Daten „Fotos“ anhaken.\n\n"
+                        + "Fotos, die vorher schon angekommen sind, erscheinen nicht. Ab jetzt geschickte schon.",
+                this::openWhatsApp, null, null);
+    }
+
+    private void openWhatsApp() {
+        Intent i = getPackageManager().getLaunchIntentForPackage("com.whatsapp");
+        if (i == null) {
+            toast("WhatsApp ist auf diesem Handy nicht installiert");
+            return;
+        }
+        try {
+            startActivity(i);
+        } catch (RuntimeException e) {
+            toast("WhatsApp lässt sich nicht öffnen");
+        }
+    }
+
     // --------------------------------------------------------------- Sonstiges
 
     private void renderMore() {
-        LinearLayout card = section("5. Sonstiges", null);
+        LinearLayout card = section("6. Sonstiges", null);
 
         Button pin = Ui.button(this, "PIN ändern", Ui.GREY_BUTTON, Ui.TEXT, 18);
         pin.setOnClickListener(v -> askNewPin(false));
@@ -724,7 +767,8 @@ public class SettingsActivity extends Activity {
             render();
             // Bei der ersten Einrichtung gleich nach Anruf- und Kontakt-Erlaubnis fragen
             if (firstTime && (!granted(Manifest.permission.CALL_PHONE)
-                    || !granted(Manifest.permission.READ_CONTACTS))) {
+                    || !granted(Manifest.permission.READ_CONTACTS)
+                    || !granted(WhatsAppPhotos.permission()))) {
                 requestPerms();
             }
         }));
