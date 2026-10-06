@@ -43,6 +43,7 @@ public class HomeActivity extends Activity {
     private static final Locale DE = Locale.GERMANY;
     private static final long DIALOG_TIMEOUT_MS = 30_000;
     private static final long PIN_TIMEOUT_MS = 60_000;
+    private static final int REQ_CALL = 21;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Store store;
@@ -55,6 +56,7 @@ public class HomeActivity extends Activity {
     private TextView batteryView;
     private LinearLayout peopleBox;
     private Dialog openDialog;
+    private Store.Person pendingCall;
 
     private final long[] tapTimes = new long[5];
     private int tapCount;
@@ -440,9 +442,27 @@ public class HomeActivity extends Activity {
             Toast.makeText(this, "Keine Telefonnummer gespeichert", Toast.LENGTH_LONG).show();
             return;
         }
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+            // Erlaubnis fehlt noch: jetzt nachfragen statt nur das Tastenfeld zu öffnen
+            pendingCall = p;
+            requestPermissions(new String[]{Manifest.permission.CALL_PHONE}, REQ_CALL);
+            return;
+        }
+        placeCall(p, true);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode != REQ_CALL || pendingCall == null) return;
+        Store.Person p = pendingCall;
+        pendingCall = null;
+        boolean granted = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
+        placeCall(p, granted);
+    }
+
+    private void placeCall(Store.Person p, boolean direct) {
         Uri uri = Uri.fromParts("tel", p.number.trim(), null);
-        boolean direct = checkSelfPermission(Manifest.permission.CALL_PHONE)
-                == PackageManager.PERMISSION_GRANTED;
         Intent i = new Intent(direct ? Intent.ACTION_CALL : Intent.ACTION_DIAL, uri);
         try {
             startActivity(i);

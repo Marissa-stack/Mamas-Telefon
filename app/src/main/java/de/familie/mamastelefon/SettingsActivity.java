@@ -722,6 +722,11 @@ public class SettingsActivity extends Activity {
             d.dismiss();
             toast("PIN gespeichert");
             render();
+            // Bei der ersten Einrichtung gleich nach Anruf- und Kontakt-Erlaubnis fragen
+            if (firstTime && (!granted(Manifest.permission.CALL_PHONE)
+                    || !granted(Manifest.permission.READ_CONTACTS))) {
+                requestPerms();
+            }
         }));
         d.show();
     }
