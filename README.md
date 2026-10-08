@@ -2,11 +2,13 @@
 
 Eine einfache Startseite für Android-Handys, gemacht für einen Menschen, der nur telefonieren möchte.
 
-- **Große Uhr** mit Wochentag, Uhrzeit, Tageszeit (Morgen, Mittag, Abend …) und Datum
+- **Große Uhr** mit Wochentag, Uhrzeit, Tageszeit (morgens, mittags, abends …) und Datum
+- **Kein Wischen, kein Scrollen**: Alles passt auf einen Bildschirm, die Kacheln passen ihre Größe an
 - **Foto-Kacheln** zum Anrufen mit einem Tipp
 - **Nachfrage vor dem Anruf** („Anna anrufen? Ja / Nein“), abschaltbar
+- **Großer „Annehmen“-Knopf**, wenn es klingelt: Foto und Name der Anruferin, ein Tipp genügt
 - **Akku-Hinweis**, wenn das Handy aufgeladen werden muss
-- **Fotos aus WhatsApp**: Ein neues Foto erscheint 24 Stunden lang groß auf der Startseite, alle weiteren über „Fotos ansehen“ (große Knöpfe statt Wischen)
+- **Fotos aus WhatsApp**: Knopf „Neues Foto ansehen“ mit Vorschaubild (24 Stunden lang grün), Ansicht mit großen Knöpfen statt Wischen
 - **Lautstärke-Schutz**: Die Lautstärketasten sind gesperrt. Lautlos, Vibration und „Nicht stören“ werden sofort wieder ausgeschaltet.
 - **Einstellungen mit PIN**: auf der Startseite **5× schnell auf die Uhr tippen**
 

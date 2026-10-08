@@ -166,6 +166,8 @@ public class SettingsActivity extends Activity {
                 "Erlauben", this::requestPerms);
         statusRow(card, "Darf Kontakte und Fotos übernehmen", granted(Manifest.permission.READ_CONTACTS),
                 "Erlauben", this::requestPerms);
+        statusRow(card, "Darf Anrufe annehmen und Anrufer erkennen", answerGranted(),
+                "Erlauben", this::requestPerms);
         statusRow(card, "Darf WhatsApp-Fotos zeigen", granted(WhatsAppPhotos.permission()),
                 "Erlauben", this::requestPerms);
         statusRow(card, "Lautstärke-Schutz eingeschaltet", isGuardServiceEnabled(),
@@ -209,6 +211,12 @@ public class SettingsActivity extends Activity {
         return checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean answerGranted() {
+        return granted(Manifest.permission.READ_PHONE_STATE)
+                && granted(Manifest.permission.ANSWER_PHONE_CALLS)
+                && granted(Manifest.permission.READ_CALL_LOG);
+    }
+
     private boolean isDefaultHome() {
         Intent i = new Intent(Intent.ACTION_MAIN);
         i.addCategory(Intent.CATEGORY_HOME);
@@ -249,7 +257,8 @@ public class SettingsActivity extends Activity {
     private void requestPerms() {
         requestPermissions(new String[]{
                 Manifest.permission.CALL_PHONE, Manifest.permission.READ_CONTACTS,
-                WhatsAppPhotos.permission()}, REQ_PERMS);
+                Manifest.permission.READ_PHONE_STATE, Manifest.permission.ANSWER_PHONE_CALLS,
+                Manifest.permission.READ_CALL_LOG, WhatsAppPhotos.permission()}, REQ_PERMS);
     }
 
     @Override
@@ -269,7 +278,7 @@ public class SettingsActivity extends Activity {
         if (blocked) {
             info("Berechtigung fehlt",
                     "Android fragt nicht mehr von selbst nach. Bitte in den App-Infos unter "
-                            + "„Berechtigungen“ Telefon, Kontakte und Fotos erlauben.",
+                            + "„Berechtigungen“ Telefon, Anruflisten, Kontakte und Fotos erlauben.",
                     this::openAppDetails, null, null);
         }
         render();
@@ -663,6 +672,12 @@ public class SettingsActivity extends Activity {
         LinearLayout card = section("4. Anrufe", null);
         card.addView(makeSwitch("Vor jedem Anruf nachfragen („… anrufen? Ja / Nein“)",
                 store.confirmCall(), store::setConfirmCall), Ui.fullWidth(this, 6));
+        card.addView(makeSwitch("Großer „Annehmen“-Knopf, wenn es klingelt",
+                store.bigAnswerOn(), store::setBigAnswerOn), Ui.fullWidth(this, 6));
+        card.addView(Ui.text(this,
+                "Statt zu wischen reicht dann ein Tipp. Funktioniert, wenn der Lautstärke-Schutz "
+                        + "eingeschaltet ist. Ist die Anruferin eine der Kacheln, erscheinen Foto und Name.",
+                16, Ui.MUTED, false), Ui.fullWidth(this, 4));
     }
 
     // ------------------------------------------------------------------ Fotos
@@ -768,6 +783,7 @@ public class SettingsActivity extends Activity {
             // Bei der ersten Einrichtung gleich nach Anruf- und Kontakt-Erlaubnis fragen
             if (firstTime && (!granted(Manifest.permission.CALL_PHONE)
                     || !granted(Manifest.permission.READ_CONTACTS)
+                    || !answerGranted()
                     || !granted(WhatsAppPhotos.permission()))) {
                 requestPerms();
             }

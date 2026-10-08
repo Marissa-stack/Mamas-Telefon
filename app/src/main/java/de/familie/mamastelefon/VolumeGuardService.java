@@ -6,10 +6,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.telecom.TelecomManager;
+import android.telephony.TelephonyManager;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -45,6 +48,34 @@ public class VolumeGuardService extends AccessibilityService {
     };
     private boolean registered;
 
+    // ---- Großer "Annehmen"-Knopf
+    private String ringingNumber;
+    private final Runnable showIncoming = this::launchIncoming;
+    private final Runnable showIncomingAgain = this::launchIncoming;
+    private final BroadcastReceiver phoneState = new BroadcastReceiver() {
+        @SuppressWarnings("deprecation")
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+            if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
+                String nr = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+                if (nr != null && !nr.isEmpty()) ringingNumber = nr;
+                // Kurz warten, damit unser Fenster über dem vom Telefon liegt,
+                // und zur Sicherheit noch einmal nach vorne holen
+                handler.removeCallbacks(showIncoming);
+                handler.removeCallbacks(showIncomingAgain);
+                handler.postDelayed(showIncoming, 700);
+                handler.postDelayed(showIncomingAgain, 2500);
+            } else if (state != null) {
+                ringingNumber = null;
+                handler.removeCallbacks(showIncoming);
+                handler.removeCallbacks(showIncomingAgain);
+            }
+            enforceSoon();
+        }
+    };
+    private boolean phoneRegistered;
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
@@ -63,8 +94,41 @@ public class VolumeGuardService extends AccessibilityService {
             }
             registered = true;
         }
+        if (!phoneRegistered) {
+            IntentFilter pf = new IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(phoneState, pf, Context.RECEIVER_EXPORTED);
+            } else {
+                registerReceiver(phoneState, pf);
+            }
+            phoneRegistered = true;
+        }
         handler.removeCallbacks(periodic);
         handler.post(periodic);
+    }
+
+    private void launchIncoming() {
+        Store store = new Store(this);
+        if (!store.hasPin() || !store.bigAnswerOn()) return;
+        if (checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS)
+                != PackageManager.PERMISSION_GRANTED) return;
+        if (!stillRinging()) return;
+        Intent i = new Intent(this, IncomingCallActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION);
+        i.putExtra(IncomingCallActivity.EXTRA_NUMBER, ringingNumber);
+        try {
+            startActivity(i);
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private boolean stillRinging() {
+        try {
+            TelecomManager tm = getSystemService(TelecomManager.class);
+            return tm == null || tm.isRinging();
+        } catch (RuntimeException e) {
+            return true;
+        }
     }
 
     private void enforceSoon() {
@@ -99,6 +163,13 @@ public class VolumeGuardService extends AccessibilityService {
             } catch (RuntimeException ignored) {
             }
             registered = false;
+        }
+        if (phoneRegistered) {
+            try {
+                unregisterReceiver(phoneState);
+            } catch (RuntimeException ignored) {
+            }
+            phoneRegistered = false;
         }
         super.onDestroy();
     }

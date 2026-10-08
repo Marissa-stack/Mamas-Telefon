@@ -123,21 +123,96 @@ final class Ui {
         v.setClipToOutline(true);
     }
 
-    /** Ein Rahmen, der immer so hoch wie breit ist. */
-    static final class SquareFrame extends FrameLayout {
-        SquareFrame(Context c) {
+    /**
+     * Ein quadratischer Rahmen, so groß wie der verfügbare Platz es erlaubt
+     * (die kleinere Seite von Breite und Höhe).
+     */
+    static final class FitSquare extends FrameLayout {
+        FitSquare(Context c) {
             super(c);
         }
 
         @Override
         protected void onMeasure(int widthSpec, int heightSpec) {
-            super.onMeasure(widthSpec, widthSpec);
+            int w = MeasureSpec.getSize(widthSpec);
+            int h = MeasureSpec.getSize(heightSpec);
+            int wm = MeasureSpec.getMode(widthSpec);
+            int hm = MeasureSpec.getMode(heightSpec);
+            int side;
+            if (wm == MeasureSpec.UNSPECIFIED && hm == MeasureSpec.UNSPECIFIED) {
+                side = 0;
+            } else if (wm == MeasureSpec.UNSPECIFIED) {
+                side = h;
+            } else if (hm == MeasureSpec.UNSPECIFIED) {
+                side = w;
+            } else {
+                side = Math.min(w, h);
+            }
+            int spec = MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY);
+            super.onMeasure(spec, spec);
+        }
+    }
+
+    /**
+     * Verteilt den verfügbaren Platz gleichmäßig auf seine Zeilen, damit alles
+     * ohne Scrollen auf einen Bildschirm passt. maxRow begrenzt die Zeilenhöhe;
+     * maxRow = 0 heißt: jede Zeile so hoch wie ihr Inhalt.
+     */
+    static final class EqualRows extends ViewGroup {
+        private final int gap;
+        private int maxRow;
+
+        EqualRows(Context c, int gapPx) {
+            super(c);
+            gap = gapPx;
+        }
+
+        void setMaxRow(int px) {
+            maxRow = px;
+            requestLayout();
+        }
+
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            int w = MeasureSpec.getSize(widthSpec);
+            int h = MeasureSpec.getSize(heightSpec);
+            boolean bounded = MeasureSpec.getMode(heightSpec) != MeasureSpec.UNSPECIFIED;
+            int n = getChildCount();
+            int wSpec = MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY);
+            int used = 0;
+            if (n > 0 && maxRow > 0) {
+                int rowH = bounded ? (h - gap * (n - 1)) / n : maxRow;
+                rowH = Math.max(0, Math.min(rowH, maxRow));
+                int hSpec = MeasureSpec.makeMeasureSpec(rowH, MeasureSpec.EXACTLY);
+                for (int i = 0; i < n; i++) getChildAt(i).measure(wSpec, hSpec);
+                used = rowH * n + gap * (n - 1);
+            } else {
+                for (int i = 0; i < n; i++) {
+                    int hSpec = bounded
+                            ? MeasureSpec.makeMeasureSpec(Math.max(0, h - used), MeasureSpec.AT_MOST)
+                            : MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+                    View child = getChildAt(i);
+                    child.measure(wSpec, hSpec);
+                    used += child.getMeasuredHeight() + (i > 0 ? gap : 0);
+                }
+            }
+            setMeasuredDimension(w, MeasureSpec.getMode(heightSpec) == MeasureSpec.EXACTLY ? h : used);
+        }
+
+        @Override
+        protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            int y = 0;
+            for (int i = 0; i < getChildCount(); i++) {
+                View child = getChildAt(i);
+                child.layout(0, y, child.getMeasuredWidth(), y + child.getMeasuredHeight());
+                y += child.getMeasuredHeight() + gap;
+            }
         }
     }
 
     /** Foto des Kontakts, oder ein farbiges Feld mit dem Anfangsbuchstaben. */
     static View avatar(Context c, Store store, Store.Person p, float radiusDp, float letterDp) {
-        SquareFrame frame = new SquareFrame(c);
+        FitSquare frame = new FitSquare(c);
         Bitmap bmp = Photos.load(store, p.photo);
         if (bmp != null) {
             ImageView iv = new ImageView(c);
@@ -170,6 +245,17 @@ final class Ui {
         f.addView(icon, lp);
         f.setLayoutParams(new LinearLayout.LayoutParams(dp(c, sizeDp), dp(c, sizeDp)));
         return f;
+    }
+
+    /** Kleiner grüner Hörer unten rechts auf einem Foto. */
+    static void addCallBadge(Context c, View avatar, int sizeDp) {
+        if (!(avatar instanceof FrameLayout)) return;
+        View badge = callCircle(c, sizeDp);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                dp(c, sizeDp), dp(c, sizeDp), Gravity.BOTTOM | Gravity.END);
+        int m = dp(c, 6);
+        lp.setMargins(m, m, m, m);
+        ((FrameLayout) avatar).addView(badge, lp);
     }
 
     static String initial(String name) {

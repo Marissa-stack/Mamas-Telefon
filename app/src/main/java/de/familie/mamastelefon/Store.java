@@ -126,6 +126,37 @@ final class Store {
         prefs.edit().putBoolean("confirm_call", on).apply();
     }
 
+    boolean bigAnswerOn() {
+        return prefs.getBoolean("big_answer", true);
+    }
+
+    void setBigAnswerOn(boolean on) {
+        prefs.edit().putBoolean("big_answer", on).apply();
+    }
+
+    /** Sucht den Kontakt zu einer Telefonnummer (z. B. beim Anruf), sonst null. */
+    Person findByNumber(String number) {
+        String a = digits(number);
+        if (a.length() < 5) return null;
+        for (Person p : people()) {
+            String b = digits(p.number);
+            if (b.length() < 5) continue;
+            if (android.telephony.PhoneNumberUtils.compare(number, p.number)) return p;
+            int n = Math.min(9, Math.min(a.length(), b.length()));
+            if (a.substring(a.length() - n).equals(b.substring(b.length() - n))) return p;
+        }
+        return null;
+    }
+
+    private static String digits(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (char ch : s.toCharArray()) {
+            if (ch >= '0' && ch <= '9') sb.append(ch);
+        }
+        return sb.toString();
+    }
+
     boolean photosOn() {
         return prefs.getBoolean("photos", true);
     }

@@ -27,7 +27,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -52,15 +51,13 @@ public class HomeActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Store store;
 
-    private ScrollView scroll;
     private TextView weekdayView;
     private TextView timeView;
     private TextView daypartView;
     private TextView dateView;
     private TextView batteryView;
-    private LinearLayout peopleBox;
-    private LinearLayout newPhotoBox;
-    private LinearLayout allPhotosBox;
+    private Ui.EqualRows peopleBox;
+    private LinearLayout photoSlot;
     private Dialog openDialog;
     private Store.Person pendingCall;
 
@@ -158,9 +155,8 @@ public class HomeActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        // Home-Taste gedrückt: offene Fenster schließen, nach oben scrollen
+        // Home-Taste gedrückt: offene Fenster schließen
         closeDialog();
-        if (scroll != null) scroll.smoothScrollTo(0, 0);
     }
 
     @Override
@@ -186,26 +182,26 @@ public class HomeActivity extends Activity {
 
     // ------------------------------------------------------------------ Aufbau
 
+    /**
+     * Alles passt auf einen Bildschirm, ohne Scrollen: oben die Uhr, darunter
+     * ggf. der Akku-Hinweis, dann die Kontakte (füllen den Platz), unten der
+     * Foto-Knopf.
+     */
     private void buildLayout() {
-        scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Ui.BG);
-
         LinearLayout page = Ui.vertical(this);
+        page.setBackgroundColor(Ui.BG);
         int pad = Ui.dp(this, 16);
-        page.setPadding(pad, Ui.dp(this, 8), pad, Ui.dp(this, 24));
-        scroll.addView(page, new ScrollView.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        page.setPadding(pad, Ui.dp(this, 4), pad, Ui.dp(this, 12));
 
         // Uhr
         LinearLayout clock = Ui.vertical(this);
         clock.setGravity(Gravity.CENTER_HORIZONTAL);
-        clock.setPadding(0, Ui.dp(this, 8), 0, Ui.dp(this, 8));
-        weekdayView = Ui.text(this, "", 36, Ui.TEXT, true);
-        timeView = Ui.text(this, "", 84, Ui.TEXT, true);
+        clock.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
+        weekdayView = Ui.text(this, "", 34, Ui.TEXT, true);
+        timeView = Ui.text(this, "", 80, Ui.TEXT, true);
         timeView.setIncludeFontPadding(false);
-        daypartView = Ui.text(this, "", 28, Ui.BLUE, true);
-        dateView = Ui.text(this, "", 24, Ui.MUTED, false);
+        daypartView = Ui.text(this, "", 26, Ui.BLUE, true);
+        dateView = Ui.text(this, "", 22, Ui.MUTED, false);
         for (TextView t : new TextView[]{weekdayView, timeView, daypartView, dateView}) {
             t.setGravity(Gravity.CENTER_HORIZONTAL);
             clock.addView(t);
@@ -216,24 +212,23 @@ public class HomeActivity extends Activity {
         // Akku
         batteryView = Ui.text(this, "", 24, Ui.TEXT, true);
         batteryView.setGravity(Gravity.CENTER);
-        int bp = Ui.dp(this, 14);
+        int bp = Ui.dp(this, 12);
         batteryView.setPadding(bp, bp, bp, bp);
         batteryView.setVisibility(View.GONE);
-        page.addView(batteryView, Ui.fullWidth(this, 8));
+        page.addView(batteryView, Ui.fullWidth(this, 6));
 
-        // Neues WhatsApp-Foto (nur in den ersten 24 Stunden)
-        newPhotoBox = Ui.vertical(this);
-        page.addView(newPhotoBox, Ui.fullWidth(this, 0));
+        // Kontakte: bekommen den ganzen restlichen Platz
+        peopleBox = new Ui.EqualRows(this, Ui.dp(this, 10));
+        LinearLayout.LayoutParams peopleLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        peopleLp.topMargin = Ui.dp(this, 10);
+        page.addView(peopleBox, peopleLp);
 
-        // Kontakte
-        peopleBox = Ui.vertical(this);
-        page.addView(peopleBox, Ui.fullWidth(this, 8));
+        // Foto-Knopf ganz unten
+        photoSlot = Ui.vertical(this);
+        page.addView(photoSlot, Ui.fullWidth(this, 0));
 
-        // Knopf "Fotos ansehen"
-        allPhotosBox = Ui.vertical(this);
-        page.addView(allPhotosBox, Ui.fullWidth(this, 0));
-
-        setContentView(scroll);
+        setContentView(page);
     }
 
     // -------------------------------------------------------------------- Uhr
@@ -306,35 +301,39 @@ public class HomeActivity extends Activity {
         peopleBox.removeAllViews();
 
         if (!store.hasPin()) {
+            peopleBox.setMaxRow(0);
             renderWelcome();
             return;
         }
 
         List<Store.Person> people = store.people();
         if (people.isEmpty()) {
+            peopleBox.setMaxRow(0);
             TextView empty = Ui.text(this, "Noch keine Kontakte eingerichtet.", 22, Ui.MUTED, false);
             empty.setGravity(Gravity.CENTER);
-            peopleBox.addView(empty, Ui.fullWidth(this, 24));
+            empty.setPadding(0, Ui.dp(this, 24), 0, 0);
+            peopleBox.addView(empty);
             return;
         }
 
         if (people.size() <= 3) {
+            peopleBox.setMaxRow(Ui.dp(this, 170));
             for (Store.Person p : people) {
-                peopleBox.addView(wideTile(p), Ui.fullWidth(this, 12));
+                peopleBox.addView(wideTile(p));
             }
         } else {
+            peopleBox.setMaxRow(Ui.dp(this, 260));
             for (int i = 0; i < people.size(); i += 2) {
                 LinearLayout row = Ui.horizontal(this);
-                row.setGravity(Gravity.TOP);
-                row.addView(gridTile(people.get(i)), gridCell());
+                row.addView(gridTile(people.get(i)), gridCell(true));
                 if (i + 1 < people.size()) {
-                    row.addView(gridTile(people.get(i + 1)), gridCell());
+                    row.addView(gridTile(people.get(i + 1)), gridCell(false));
                 } else {
                     View spacer = new View(this);
                     spacer.setVisibility(View.INVISIBLE);
-                    row.addView(spacer, gridCell());
+                    row.addView(spacer, gridCell(false));
                 }
-                peopleBox.addView(row, Ui.fullWidth(this, 4));
+                peopleBox.addView(row);
             }
         }
     }
@@ -351,121 +350,114 @@ public class HomeActivity extends Activity {
         Button start = Ui.button(this, "Einrichtung starten", Ui.GREEN, 0xFFFFFFFF, 22);
         start.setOnClickListener(v -> openSettings());
         box.addView(start, Ui.fullWidth(this, 16));
-        peopleBox.addView(box, Ui.fullWidth(this, 16));
+        peopleBox.addView(box);
     }
 
     /** Breite Kachel (bei bis zu 3 Kontakten): Foto links, Name, grüner Hörer. */
     private View wideTile(Store.Person p) {
         LinearLayout tile = Ui.horizontal(this);
         tile.setBackground(Ui.pressable(Ui.card(this)));
-        int pad = Ui.dp(this, 12);
+        int pad = Ui.dp(this, 10);
         tile.setPadding(pad, pad, pad, pad);
 
+        // Foto so groß wie die Kachel hoch ist
         View photo = Ui.avatar(this, store, p, 16, 52);
-        tile.addView(photo, new LinearLayout.LayoutParams(Ui.dp(this, 112), Ui.dp(this, 112)));
+        tile.addView(photo, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         TextView name = Ui.text(this, p.name, 30, Ui.TEXT, true);
         name.setMaxLines(3);
         LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        nameLp.leftMargin = Ui.dp(this, 16);
+        nameLp.leftMargin = Ui.dp(this, 14);
         nameLp.rightMargin = Ui.dp(this, 8);
         tile.addView(name, nameLp);
 
-        tile.addView(Ui.callCircle(this, 68));
+        tile.addView(Ui.callCircle(this, 64));
 
         tile.setOnClickListener(v -> onPersonTapped(p));
         tile.setContentDescription(p.name + " anrufen");
         return tile;
     }
 
-    /** Kachel im Raster (ab 4 Kontakten): Foto oben, Name, grüner Balken "Anrufen". */
+    /** Kachel im Raster (ab 4 Kontakten): Foto mit grünem Hörer, darunter der Name. */
     private View gridTile(Store.Person p) {
         LinearLayout tile = Ui.vertical(this);
+        tile.setGravity(Gravity.CENTER);
         tile.setBackground(Ui.pressable(Ui.card(this)));
-        int pad = Ui.dp(this, 10);
+        int pad = Ui.dp(this, 8);
         tile.setPadding(pad, pad, pad, pad);
 
-        tile.addView(Ui.avatar(this, store, p, 14, 64), new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        View photo = Ui.avatar(this, store, p, 14, 56);
+        Ui.addCallBadge(this, photo, 44);
+        LinearLayout.LayoutParams photoLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        photoLp.gravity = Gravity.CENTER_HORIZONTAL;
+        tile.addView(photo, photoLp);
 
-        TextView name = Ui.text(this, p.name, 24, Ui.TEXT, true);
+        TextView name = Ui.text(this, p.name, 22, Ui.TEXT, true);
         name.setGravity(Gravity.CENTER_HORIZONTAL);
         name.setMaxLines(2);
-        tile.addView(name, Ui.fullWidth(this, 8));
-
-        LinearLayout bar = Ui.horizontal(this);
-        bar.setGravity(Gravity.CENTER);
-        bar.setBackground(Ui.rounded(Ui.GREEN, Ui.dp(this, 12)));
-        android.widget.ImageView icon = new android.widget.ImageView(this);
-        icon.setImageResource(R.drawable.ic_call);
-        bar.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 26), Ui.dp(this, 26)));
-        TextView label = Ui.text(this, "Anrufen", 20, 0xFFFFFFFF, true);
-        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        labelLp.leftMargin = Ui.dp(this, 8);
-        bar.addView(label, labelLp);
-        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 52));
-        barLp.topMargin = Ui.dp(this, 8);
-        tile.addView(bar, barLp);
+        tile.addView(name, Ui.fullWidth(this, 6));
 
         tile.setOnClickListener(v -> onPersonTapped(p));
         tile.setContentDescription(p.name + " anrufen");
         return tile;
     }
 
-    private LinearLayout.LayoutParams gridCell() {
+    private LinearLayout.LayoutParams gridCell(boolean first) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        int m = Ui.dp(this, 6);
-        lp.setMargins(m, m, m, m);
+                ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        if (first) lp.rightMargin = Ui.dp(this, 10);
         return lp;
     }
 
     // ------------------------------------------------------------------ Fotos
 
+    /**
+     * Foto-Knopf ganz unten: kleines Vorschaubild und "Neues Foto ansehen"
+     * (grün, 24 Stunden lang) bzw. "Fotos ansehen".
+     */
     private void renderPhotos() {
-        newPhotoBox.removeAllViews();
-        allPhotosBox.removeAllViews();
+        photoSlot.removeAllViews();
         if (!store.hasPin() || !store.photosOn()) return;
         List<WhatsAppPhotos.Item> items = WhatsAppPhotos.recent(this, 1);
         if (items.isEmpty()) return;
         WhatsAppPhotos.Item newest = items.get(0);
+        boolean isNew = WhatsAppPhotos.isNew(newest);
 
-        if (WhatsAppPhotos.isNew(newest)) {
-            LinearLayout tile = Ui.vertical(this);
-            tile.setBackground(Ui.pressable(Ui.card(this)));
-            int pad = Ui.dp(this, 12);
-            tile.setPadding(pad, pad, pad, pad);
+        LinearLayout bar = Ui.horizontal(this);
+        android.graphics.drawable.GradientDrawable bg =
+                Ui.rounded(isNew ? Ui.GREEN_SOFT : Ui.GREY_BUTTON, Ui.dp(this, 16));
+        if (isNew) bg.setStroke(Ui.dp(this, 2), Ui.GREEN);
+        bar.setBackground(Ui.pressable(bg));
+        int pad = Ui.dp(this, 8);
+        bar.setPadding(pad, pad, Ui.dp(this, 14), pad);
 
-            LinearLayout head = Ui.horizontal(this);
-            head.addView(Ui.text(this, "Neues Foto", 26, Ui.GREEN, true),
-                    new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            head.addView(Ui.text(this, whenReceived(newest.receivedMs), 20, Ui.MUTED, false));
-            tile.addView(head);
+        Ui.FitSquare thumb = new Ui.FitSquare(this);
+        ImageView img = new ImageView(this);
+        img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        Bitmap bmp = Photos.decode(this, newest.uri, 300);
+        if (bmp != null) img.setImageBitmap(bmp);
+        thumb.addView(img, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        Ui.clipRounded(thumb, Ui.dp(this, 10));
+        bar.addView(thumb, new LinearLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 64)));
 
-            ImageView img = new ImageView(this);
-            img.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            Bitmap bmp = Photos.decode(this, newest.uri, 900);
-            if (bmp != null) img.setImageBitmap(bmp);
-            Ui.clipRounded(img, Ui.dp(this, 14));
-            LinearLayout.LayoutParams imgLp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 210));
-            imgLp.topMargin = Ui.dp(this, 10);
-            tile.addView(img, imgLp);
-
-            tile.setOnClickListener(v -> showPhotos());
-            tile.setContentDescription("Neues Foto ansehen");
-            newPhotoBox.addView(tile, Ui.fullWidth(this, 12));
+        LinearLayout texts = Ui.vertical(this);
+        texts.addView(Ui.text(this, isNew ? "Neues Foto ansehen" : "Fotos ansehen", 24,
+                isNew ? Ui.GREEN : Ui.TEXT, true));
+        if (isNew) {
+            texts.addView(Ui.text(this, whenReceived(newest.receivedMs), 18, Ui.MUTED, false));
         }
+        LinearLayout.LayoutParams textsLp = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        textsLp.leftMargin = Ui.dp(this, 14);
+        bar.addView(texts, textsLp);
 
-        Button all = Ui.button(this, "Fotos ansehen", Ui.GREY_BUTTON, Ui.TEXT, 24);
-        all.setOnClickListener(v -> showPhotos());
-        LinearLayout.LayoutParams allLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 68));
-        allLp.topMargin = Ui.dp(this, 18);
-        allPhotosBox.addView(all, allLp);
+        bar.setOnClickListener(v -> showPhotos());
+        bar.setContentDescription(isNew ? "Neues Foto ansehen" : "Fotos ansehen");
+        photoSlot.addView(bar, Ui.fullWidth(this, 10));
     }
 
     /** "heute, 14:20", "gestern, 18:05" oder "Dienstag, 6. Oktober". */
@@ -581,13 +573,14 @@ public class HomeActivity extends Activity {
 
         LinearLayout box = Ui.vertical(this);
         box.setBackgroundColor(Ui.BG);
-        box.setGravity(Gravity.CENTER_HORIZONTAL);
+        box.setGravity(Gravity.CENTER);
         int pad = Ui.dp(this, 24);
         box.setPadding(pad, pad, pad, pad);
 
+        // Foto nimmt den freien Platz ein (höchstens 250 dp), damit nichts gescrollt werden muss
         View photo = Ui.avatar(this, store, p, 24, 96);
-        LinearLayout.LayoutParams photoLp = new LinearLayout.LayoutParams(Ui.dp(this, 230), Ui.dp(this, 230));
-        photoLp.topMargin = Ui.dp(this, 16);
+        LinearLayout.LayoutParams photoLp = new LinearLayout.LayoutParams(Ui.dp(this, 250), 0, 1f);
+        photoLp.gravity = Gravity.CENTER_HORIZONTAL;
         box.addView(photo, photoLp);
 
         TextView question = Ui.text(this, p.name + "\nanrufen?", 36, Ui.TEXT, true);
@@ -611,11 +604,7 @@ public class HomeActivity extends Activity {
         noLp.topMargin = Ui.dp(this, 16);
         box.addView(no, noLp);
 
-        ScrollView sv = new ScrollView(this);
-        sv.setFillViewport(true);
-        sv.setBackgroundColor(Ui.BG);
-        sv.addView(box);
-        d.setContentView(sv);
+        d.setContentView(box);
         blockVolumeKeys(d);
         showDialog(d);
         handler.postDelayed(() -> {

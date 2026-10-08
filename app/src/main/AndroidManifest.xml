@@ -8,6 +8,10 @@
     <!-- "Nicht stören" wieder ausschalten dürfen -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Großer "Annehmen"-Knopf: merken, wenn es klingelt, Anrufer erkennen, Anruf annehmen -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <!-- Von WhatsApp gespeicherte Fotos auf der Startseite zeigen -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission
@@ -54,6 +58,16 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".IncomingCallActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:showWhenLocked="true"
+            android:taskAffinity="de.familie.mamastelefon.anruf"
+            android:turnScreenOn="true" />
 
         <service
             android:name=".VolumeGuardService"
