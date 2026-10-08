@@ -11,7 +11,6 @@ import android.media.AudioManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.telecom.TelecomManager;
 import android.telephony.TelephonyManager;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
@@ -122,10 +121,11 @@ public class VolumeGuardService extends AccessibilityService {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private boolean stillRinging() {
         try {
-            TelecomManager tm = getSystemService(TelecomManager.class);
-            return tm == null || tm.isRinging();
+            TelephonyManager t = getSystemService(TelephonyManager.class);
+            return t == null || t.getCallState() == TelephonyManager.CALL_STATE_RINGING;
         } catch (RuntimeException e) {
             return true;
         }

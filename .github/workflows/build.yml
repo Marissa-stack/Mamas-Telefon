@@ -32,7 +32,10 @@ jobs:
           gradle-version: '8.14.3'
 
       - name: App bauen
-        run: gradle --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log
 
       - name: Als Download veröffentlichen
         env:

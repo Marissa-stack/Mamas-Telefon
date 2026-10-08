@@ -171,10 +171,11 @@ public class IncomingCallActivity extends Activity {
         finish();
     }
 
+    @SuppressWarnings("deprecation")
     private boolean isRinging() {
         try {
-            TelecomManager tm = getSystemService(TelecomManager.class);
-            return tm == null || tm.isRinging();
+            TelephonyManager t = getSystemService(TelephonyManager.class);
+            return t == null || t.getCallState() == TelephonyManager.CALL_STATE_RINGING;
         } catch (RuntimeException e) {
             return true; // Im Zweifel anzeigen; das Ende des Klingelns schließt das Fenster
         }
