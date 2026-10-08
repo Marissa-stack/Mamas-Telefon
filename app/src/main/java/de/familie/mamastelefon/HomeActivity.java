@@ -19,6 +19,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.text.InputType;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -365,10 +366,13 @@ public class HomeActivity extends Activity {
         tile.addView(photo, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
+        // Schrift wird kleiner, wenn ein langer Name sonst mitten im Wort umbrechen würde
         TextView name = Ui.text(this, p.name, 30, Ui.TEXT, true);
-        name.setMaxLines(3);
+        name.setGravity(Gravity.CENTER_VERTICAL);
+        name.setMaxLines(2);
+        name.setAutoSizeTextTypeUniformWithConfiguration(16, 30, 1, TypedValue.COMPLEX_UNIT_DIP);
         LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                ViewGroup.LayoutParams.MATCH_PARENT, 1f);
         nameLp.leftMargin = Ui.dp(this, 14);
         nameLp.rightMargin = Ui.dp(this, 8);
         tile.addView(name, nameLp);
@@ -396,9 +400,13 @@ public class HomeActivity extends Activity {
         tile.addView(photo, photoLp);
 
         TextView name = Ui.text(this, p.name, 22, Ui.TEXT, true);
-        name.setGravity(Gravity.CENTER_HORIZONTAL);
+        name.setGravity(Gravity.CENTER);
         name.setMaxLines(2);
-        tile.addView(name, Ui.fullWidth(this, 6));
+        name.setAutoSizeTextTypeUniformWithConfiguration(13, 22, 1, TypedValue.COMPLEX_UNIT_DIP);
+        LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 56));
+        nameLp.topMargin = Ui.dp(this, 4);
+        tile.addView(name, nameLp);
 
         tile.setOnClickListener(v -> onPersonTapped(p));
         tile.setContentDescription(p.name + " anrufen");
