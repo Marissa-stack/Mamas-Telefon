@@ -210,6 +210,133 @@ final class Ui {
         }
     }
 
+    /**
+     * Bildanzeige zum Vergrößern: einmal antippen = 2,5-fach größer an der
+     * Stelle, wieder antippen = zurück. Mit zwei Fingern auseinanderziehen
+     * geht auch. Vergrößert lässt sich das Bild mit dem Finger verschieben.
+     */
+    static final class ZoomImageView extends ImageView {
+        private final android.graphics.Matrix matrix = new android.graphics.Matrix();
+        private final android.view.ScaleGestureDetector scaleDetector;
+        private final android.view.GestureDetector tapDetector;
+        private float scale = 1f;
+
+        ZoomImageView(Context c) {
+            super(c);
+            setScaleType(ScaleType.MATRIX);
+            scaleDetector = new android.view.ScaleGestureDetector(c,
+                    new android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                        @Override
+                        public boolean onScale(android.view.ScaleGestureDetector d) {
+                            zoomBy(d.getScaleFactor(), d.getFocusX(), d.getFocusY());
+                            return true;
+                        }
+                    });
+            tapDetector = new android.view.GestureDetector(c,
+                    new android.view.GestureDetector.SimpleOnGestureListener() {
+                        @Override
+                        public boolean onDown(android.view.MotionEvent e) {
+                            return true;
+                        }
+
+                        @Override
+                        public boolean onSingleTapUp(android.view.MotionEvent e) {
+                            if (scale > 1.05f) {
+                                fit();
+                            } else {
+                                zoomBy(2.5f, e.getX(), e.getY());
+                            }
+                            return true;
+                        }
+
+                        @Override
+                        public boolean onScroll(android.view.MotionEvent e1, android.view.MotionEvent e2,
+                                                float dx, float dy) {
+                            if (scale > 1.01f) {
+                                matrix.postTranslate(-dx, -dy);
+                                clampAndApply();
+                            }
+                            return true;
+                        }
+                    });
+        }
+
+        @Override
+        public void setImageBitmap(Bitmap bm) {
+            super.setImageBitmap(bm);
+            fit();
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            fit();
+        }
+
+        /** Ganzes Bild sichtbar, mittig, nicht vergrößert. */
+        void fit() {
+            Drawable d = getDrawable();
+            int w = getWidth();
+            int h = getHeight();
+            scale = 1f;
+            matrix.reset();
+            if (d == null || w == 0 || h == 0 || d.getIntrinsicWidth() <= 0 || d.getIntrinsicHeight() <= 0) {
+                setImageMatrix(matrix);
+                return;
+            }
+            float dw = d.getIntrinsicWidth();
+            float dh = d.getIntrinsicHeight();
+            float s = Math.min(w / dw, h / dh);
+            matrix.postScale(s, s);
+            matrix.postTranslate((w - dw * s) / 2f, (h - dh * s) / 2f);
+            setImageMatrix(matrix);
+        }
+
+        private void zoomBy(float factor, float px, float py) {
+            float next = Math.max(1f, Math.min(4f, scale * factor));
+            float f = next / scale;
+            scale = next;
+            matrix.postScale(f, f, px, py);
+            clampAndApply();
+        }
+
+        /** Verhindert, dass das Bild aus dem Rahmen rutscht. */
+        private void clampAndApply() {
+            Drawable d = getDrawable();
+            if (d == null) return;
+            android.graphics.RectF r = new android.graphics.RectF(
+                    0, 0, d.getIntrinsicWidth(), d.getIntrinsicHeight());
+            matrix.mapRect(r);
+            float w = getWidth();
+            float h = getHeight();
+            float dx = 0;
+            float dy = 0;
+            if (r.width() <= w) {
+                dx = (w - r.width()) / 2f - r.left;
+            } else if (r.left > 0) {
+                dx = -r.left;
+            } else if (r.right < w) {
+                dx = w - r.right;
+            }
+            if (r.height() <= h) {
+                dy = (h - r.height()) / 2f - r.top;
+            } else if (r.top > 0) {
+                dy = -r.top;
+            } else if (r.bottom < h) {
+                dy = h - r.bottom;
+            }
+            matrix.postTranslate(dx, dy);
+            setImageMatrix(matrix);
+        }
+
+        @Override
+        public boolean onTouchEvent(android.view.MotionEvent e) {
+            scaleDetector.onTouchEvent(e);
+            tapDetector.onTouchEvent(e);
+            return true;
+        }
+    }
+
     /** Foto des Kontakts, oder ein farbiges Feld mit dem Anfangsbuchstaben. */
     static View avatar(Context c, Store store, Store.Person p, float radiusDp, float letterDp) {
         FitSquare frame = new FitSquare(c);

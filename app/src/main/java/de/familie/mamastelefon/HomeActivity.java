@@ -544,8 +544,8 @@ public class HomeActivity extends Activity {
         box.addView(close, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 68)));
 
-        ImageView img = new ImageView(this);
-        img.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        // Antippen vergrößert, nochmal antippen verkleinert (zwei Finger gehen auch)
+        Ui.ZoomImageView img = new Ui.ZoomImageView(this);
         LinearLayout.LayoutParams imgLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         imgLp.topMargin = Ui.dp(this, 12);
@@ -557,8 +557,12 @@ public class HomeActivity extends Activity {
         box.addView(caption, Ui.fullWidth(this, 0));
 
         LinearLayout nav = Ui.horizontal(this);
-        Button prev = Ui.button(this, "◀ Vorheriges", 0xFF3A3A3A, 0xFFFFFFFF, 22);
+        Button prev = Ui.button(this, "◀ Voriges", 0xFF3A3A3A, 0xFFFFFFFF, 22);
         Button next = Ui.button(this, "Nächstes ▶", 0xFF3A3A3A, 0xFFFFFFFF, 22);
+        prev.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0);
+        next.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0);
+        prev.setMaxLines(1);
+        next.setMaxLines(1);
         LinearLayout.LayoutParams prevLp = new LinearLayout.LayoutParams(0, Ui.dp(this, 76), 1f);
         prevLp.rightMargin = Ui.dp(this, 10);
         nav.addView(prev, prevLp);
@@ -570,8 +574,9 @@ public class HomeActivity extends Activity {
             WhatsAppPhotos.Item it = items.get(pos[0]);
             Bitmap bmp = Photos.decode(this, it.uri, 1400);
             img.setImageBitmap(bmp);
-            caption.setText(bmp != null ? "Bekommen: " + whenReceived(it.receivedMs)
-                    : "Dieses Foto lässt sich nicht öffnen");
+            String when = whenReceived(it.receivedMs);
+            when = when.substring(0, 1).toUpperCase(DE) + when.substring(1);
+            caption.setText(bmp != null ? when : "Dieses Foto lässt sich nicht öffnen");
             prev.setEnabled(pos[0] > 0);
             prev.setAlpha(pos[0] > 0 ? 1f : 0.3f);
             next.setEnabled(pos[0] < items.size() - 1);
