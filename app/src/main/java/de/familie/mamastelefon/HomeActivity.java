@@ -119,16 +119,25 @@ public class HomeActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         store = new Store(this);
-        if (android.os.Build.VERSION.SDK_INT >= 27) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-        }
         buildLayout();
+        applyBars();
+    }
+
+    /** Leisten oben und unten ausblenden, damit sie nicht aus Versehen angetippt werden. */
+    private void applyBars() {
+        SystemBars.apply(getWindow(), store.fullscreenOn(), true);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) applyBars();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        applyBars();
         IntentFilter clock = new IntentFilter();
         clock.addAction(Intent.ACTION_TIME_TICK);
         clock.addAction(Intent.ACTION_TIME_CHANGED);
@@ -599,11 +608,10 @@ public class HomeActivity extends Activity {
         if (d.getWindow() != null) {
             d.getWindow().setStatusBarColor(0xFF000000);
             d.getWindow().setNavigationBarColor(0xFF000000);
-            d.getWindow().getDecorView().setSystemUiVisibility(0);
         }
         blockVolumeKeys(d);
         show.run();
-        showDialog(d);
+        showDialog(d, false);
     }
 
     // ----------------------------------------------------------------- Anrufen
@@ -751,11 +759,15 @@ public class HomeActivity extends Activity {
     }
 
     private void showDialog(Dialog d) {
+        showDialog(d, true);
+    }
+
+    private void showDialog(Dialog d, boolean lightBars) {
         openDialog = d;
         d.setOnDismissListener(di -> {
             if (openDialog == d) openDialog = null;
         });
-        d.show();
+        SystemBars.showDialog(d, store.fullscreenOn(), lightBars);
     }
 
     private void closeDialog() {

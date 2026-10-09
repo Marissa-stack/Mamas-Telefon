@@ -7,6 +7,7 @@ Eine einfache Startseite für Android-Handys, gemacht für einen Menschen, der n
 - **Foto-Kacheln** zum Anrufen mit einem Tipp
 - **Nachfrage vor dem Anruf** („Anna anrufen? Ja / Nein“), abschaltbar
 - **Großer „Annehmen“-Knopf**, wenn es klingelt: Foto und Name der Anruferin, ein Tipp genügt
+- **Keine Leisten zum Danebentippen**: Die Leisten oben und unten (Zurück, Startseite, Übersicht) sind ausgeblendet. Wischen vom Rand holt sie kurz zurück. Abschaltbar.
 - **Akku-Hinweis**, wenn das Handy aufgeladen werden muss
 - **Fotos aus WhatsApp**: Knopf „Neues Foto ansehen“ mit Vorschaubild (24 Stunden lang grün), Ansicht mit großen Knöpfen statt Wischen
 - **Lautstärke-Schutz**: Die Lautstärketasten sind gesperrt. Lautlos, Vibration und „Nicht stören“ werden sofort wieder ausgeschaltet.
@@ -35,6 +36,8 @@ Handy-Einstellungen → Apps → Mamas Telefon → Speicher → **Daten löschen
 
 - Den Lautstärkeregler im Schnellmenü kann keine normale App ausblenden. Die App stellt die Lautstärke aber sofort wieder zurück.
 - Wenn es klingelt, schaltet ein Druck auf die Lautstärketaste bei Android den Klingelton *dieses einen* Anrufs stumm. Das kann eine App nicht verhindern. Die eingestellte Lautstärke bleibt dabei aber gleich.
+
+- Die ausgeblendeten Leisten lassen sich ganz ohne Geräteverwaltung (Kiosk-Modus) nicht völlig sperren: Wer vom unteren Rand nach oben wischt, sieht sie für ein paar Sekunden.
 
 ## Technisches
 

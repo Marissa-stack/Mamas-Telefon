@@ -157,6 +157,15 @@ final class Store {
         return sb.toString();
     }
 
+    /** Leisten oben und unten (Zurück, Startseite, Übersicht) ausblenden. */
+    boolean fullscreenOn() {
+        return prefs.getBoolean("fullscreen", true);
+    }
+
+    void setFullscreenOn(boolean on) {
+        prefs.edit().putBoolean("fullscreen", on).apply();
+    }
+
     boolean photosOn() {
         return prefs.getBoolean("photos", true);
     }

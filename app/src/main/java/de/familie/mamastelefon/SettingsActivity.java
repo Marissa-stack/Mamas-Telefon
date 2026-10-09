@@ -731,6 +731,14 @@ public class SettingsActivity extends Activity {
     private void renderMore() {
         LinearLayout card = section("6. Sonstiges", null);
 
+        card.addView(makeSwitch("Leisten oben und unten ausblenden (Zurück, Startseite, Übersicht)",
+                store.fullscreenOn(), store::setFullscreenOn), Ui.fullWidth(this, 6));
+        card.addView(Ui.text(this,
+                "Dann kommt niemand mehr aus Versehen auf die Knöpfe unten. Wer vom unteren Rand "
+                        + "nach oben wischt, holt die Leiste für ein paar Sekunden zurück. "
+                        + "Hier in den Einstellungen bleibt sie immer sichtbar.",
+                16, Ui.MUTED, false), Ui.fullWidth(this, 4));
+
         Button pin = Ui.button(this, "PIN ändern", Ui.GREY_BUTTON, Ui.TEXT, 18);
         pin.setOnClickListener(v -> askNewPin(false));
         card.addView(pin, Ui.fullWidth(this, 10));

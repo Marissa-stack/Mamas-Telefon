@@ -82,11 +82,19 @@ public class IncomingCallActivity extends Activity {
                     | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
                     | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
-        if (Build.VERSION.SDK_INT >= 27) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-        }
         build(getIntent());
+        applyBars();
+    }
+
+    /** Leisten ausblenden: sonst landet man beim Annehmen leicht auf "Startseite" oder "Zurück". */
+    private void applyBars() {
+        SystemBars.apply(getWindow(), new Store(this).fullscreenOn(), true);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) applyBars();
     }
 
     @Override
@@ -99,6 +107,7 @@ public class IncomingCallActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        applyBars();
         if (!registered) {
             IntentFilter f = new IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
             if (Build.VERSION.SDK_INT >= 33) {
