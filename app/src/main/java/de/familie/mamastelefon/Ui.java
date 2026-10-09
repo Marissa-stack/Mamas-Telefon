@@ -3,7 +3,9 @@ package de.familie.mamastelefon;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Outline;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -35,8 +37,20 @@ final class Ui {
     static final int BLUE = 0xFF1F4E8C;
     static final int GREY_BUTTON = 0xFFEDE6DA;
 
+    /**
+     * Kachelfarben für Kontakte ohne Foto: deutlich verschieden, kein Grün
+     * (Grün ist der Anruf-Hörer). Vergeben nach Reihenfolge, damit die
+     * ersten acht Kontakte garantiert alle eine eigene Farbe haben.
+     */
     private static final int[] AVATAR_COLORS = {
-            0xFF1F4E8C, 0xFF8C3B1F, 0xFF1E7B34, 0xFF6B3FA0, 0xFF8C6D1F, 0xFF1F7A8C
+            0xFF1F5FBF, // Blau
+            0xFFC0392B, // Rot
+            0xFF7B3FA8, // Lila
+            0xFFC75000, // Orange
+            0xFF0F7C8C, // Türkis
+            0xFFC2185B, // Pink
+            0xFF7A5230, // Braun
+            0xFF455A64  // Schiefergrau
     };
 
     private Ui() {
@@ -148,8 +162,82 @@ final class Ui {
             } else {
                 side = Math.min(w, h);
             }
+            if (badge != null) {
+                // Hörer etwa ein Drittel so groß wie das Bild, höchstens badgeMax
+                int b = Math.max(1, Math.min(badgeMax, Math.round(side * 0.32f)));
+                int m = Math.round(side * 0.05f);
+                LayoutParams lp = (LayoutParams) badge.getLayoutParams();
+                lp.width = b;
+                lp.height = b;
+                lp.setMargins(m, m, m, m);
+                boolean show = side >= badgeMinSide;
+                if (badge.showIt != show) {
+                    badge.showIt = show;
+                    badge.invalidate();
+                }
+            }
             int spec = MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY);
             super.onMeasure(spec, spec);
+        }
+
+        private CallBadge badge;
+        private int badgeMax;
+        private int badgeMinSide;
+    }
+
+    /** Grüner Kreis mit Hörer, zeichnet sich passend zu seiner Größe. */
+    static final class CallBadge extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Drawable icon;
+        boolean showIt = true;
+
+        CallBadge(Context c) {
+            super(c);
+            paint.setColor(GREEN);
+            icon = c.getDrawable(R.drawable.ic_call);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            if (!showIt) return;
+            int w = getWidth();
+            int h = getHeight();
+            float cx = w / 2f;
+            float cy = h / 2f;
+            float r = Math.min(w, h) / 2f;
+            canvas.drawCircle(cx, cy, r, paint);
+            if (icon != null) {
+                int half = Math.round(r * 0.55f);
+                icon.setBounds(Math.round(cx) - half, Math.round(cy) - half,
+                        Math.round(cx) + half, Math.round(cy) + half);
+                icon.draw(canvas);
+            }
+        }
+    }
+
+    /** Weißer Anfangsbuchstabe, immer passend zur Größe der Kachel. */
+    static final class Letter extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final String letter;
+        private final float maxPx;
+
+        Letter(Context c, String letter, float maxDp) {
+            super(c);
+            this.letter = letter;
+            this.maxPx = dp(c, maxDp);
+            paint.setColor(0xFFFFFFFF);
+            paint.setTypeface(Typeface.DEFAULT_BOLD);
+            paint.setTextAlign(Paint.Align.CENTER);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            int w = getWidth();
+            int h = getHeight();
+            paint.setTextSize(Math.min(Math.min(w, h) * 0.5f, maxPx));
+            Paint.FontMetrics fm = paint.getFontMetrics();
+            float y = h / 2f - (fm.ascent + fm.descent) / 2f;
+            canvas.drawText(letter, w / 2f, y, paint);
         }
     }
 
@@ -348,11 +436,9 @@ final class Ui {
             frame.addView(iv, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         } else {
-            TextView t = text(c, initial(p.name), letterDp, 0xFFFFFFFF, true);
-            t.setGravity(Gravity.CENTER);
-            frame.addView(t, new FrameLayout.LayoutParams(
+            frame.addView(new Letter(c, initial(p.name), letterDp), new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-            frame.setBackgroundColor(colorFor(p.name));
+            frame.setBackgroundColor(colorFor(store, p));
         }
         clipRounded(frame, dp(c, radiusDp));
         return frame;
@@ -376,13 +462,16 @@ final class Ui {
 
     /** Kleiner grüner Hörer unten rechts auf einem Foto. */
     static void addCallBadge(Context c, View avatar, int sizeDp) {
-        if (!(avatar instanceof FrameLayout)) return;
-        View badge = callCircle(c, sizeDp);
+        if (!(avatar instanceof FitSquare)) return;
+        FitSquare frame = (FitSquare) avatar;
+        CallBadge badge = new CallBadge(c);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 dp(c, sizeDp), dp(c, sizeDp), Gravity.BOTTOM | Gravity.END);
-        int m = dp(c, 6);
-        lp.setMargins(m, m, m, m);
-        ((FrameLayout) avatar).addView(badge, lp);
+        frame.addView(badge, lp);
+        frame.badge = badge;
+        frame.badgeMax = dp(c, sizeDp);
+        // Ist das Bild kleiner, bliebe vom Bild kaum etwas übrig: dann ohne Hörer
+        frame.badgeMinSide = dp(c, 80);
     }
 
     static String initial(String name) {
@@ -390,8 +479,13 @@ final class Ui {
         return n.isEmpty() ? "?" : n.substring(0, n.offsetByCodePoints(0, 1)).toUpperCase();
     }
 
-    private static int colorFor(String name) {
-        int h = name == null ? 0 : name.hashCode();
+    /** Farbe nach Platz in der Liste: Nachbarn haben nie dieselbe Farbe. */
+    private static int colorFor(Store store, Store.Person p) {
+        java.util.List<Store.Person> people = store.people();
+        for (int i = 0; i < people.size(); i++) {
+            if (p.id != null && p.id.equals(people.get(i).id)) return AVATAR_COLORS[i % AVATAR_COLORS.length];
+        }
+        int h = p.name == null ? 0 : p.name.hashCode();
         return AVATAR_COLORS[Math.abs(h % AVATAR_COLORS.length)];
     }
 }
