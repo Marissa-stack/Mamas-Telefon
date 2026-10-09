@@ -107,28 +107,7 @@ public class VolumeGuardService extends AccessibilityService {
     }
 
     private void launchIncoming() {
-        Store store = new Store(this);
-        if (!store.hasPin() || !store.bigAnswerOn()) return;
-        if (checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS)
-                != PackageManager.PERMISSION_GRANTED) return;
-        if (!stillRinging()) return;
-        Intent i = new Intent(this, IncomingCallActivity.class);
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION);
-        i.putExtra(IncomingCallActivity.EXTRA_NUMBER, ringingNumber);
-        try {
-            startActivity(i);
-        } catch (RuntimeException ignored) {
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    private boolean stillRinging() {
-        try {
-            TelephonyManager t = getSystemService(TelephonyManager.class);
-            return t == null || t.getCallState() == TelephonyManager.CALL_STATE_RINGING;
-        } catch (RuntimeException e) {
-            return true;
-        }
+        IncomingCallActivity.launchIfRinging(this, ringingNumber);
     }
 
     private void enforceSoon() {

@@ -28,12 +28,42 @@ import android.widget.TextView;
 public class IncomingCallActivity extends Activity {
 
     static final String EXTRA_NUMBER = "nummer";
+    /** Probe aus den Einstellungen: zeigt den Bildschirm, ohne dass es klingelt. */
+    static final String EXTRA_DEMO = "probe";
+
+    private boolean demo;
+
+    /** Zeigt den Annehmen-Bildschirm, wenn es gerade klingelt und alles erlaubt ist. */
+    static void launchIfRinging(Context c, String number) {
+        Store store = new Store(c);
+        if (!store.hasPin() || !store.bigAnswerOn()) return;
+        if (c.checkSelfPermission(Manifest.permission.ANSWER_PHONE_CALLS)
+                != PackageManager.PERMISSION_GRANTED) return;
+        if (!isRingingNow(c)) return;
+        Intent i = new Intent(c, IncomingCallActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION);
+        i.putExtra(EXTRA_NUMBER, number);
+        try {
+            c.startActivity(i);
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    static boolean isRingingNow(Context c) {
+        try {
+            TelephonyManager t = c.getSystemService(TelephonyManager.class);
+            return t == null || t.getCallState() == TelephonyManager.CALL_STATE_RINGING;
+        } catch (RuntimeException e) {
+            return true; // Im Zweifel anzeigen; das Ende des Klingelns schließt das Fenster
+        }
+    }
 
     private final BroadcastReceiver phoneState = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
-            if (state != null && !TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
+            if (!demo && state != null && !TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
                 finish();
             }
         }
@@ -78,7 +108,7 @@ public class IncomingCallActivity extends Activity {
             }
             registered = true;
         }
-        if (!isRinging()) finish();
+        if (!demo && !isRingingNow(this)) finish();
     }
 
     @Override
@@ -96,7 +126,8 @@ public class IncomingCallActivity extends Activity {
     @SuppressWarnings("deprecation")
     @Override
     public void onBackPressed() {
-        // Nicht aus Versehen wegdrücken
+        // Nicht aus Versehen wegdrücken – nur die Probe lässt sich so schließen
+        if (demo) finish();
     }
 
     @Override
@@ -107,8 +138,10 @@ public class IncomingCallActivity extends Activity {
 
     private void build(Intent intent) {
         String number = intent != null ? intent.getStringExtra(EXTRA_NUMBER) : null;
+        demo = intent != null && intent.getBooleanExtra(EXTRA_DEMO, false);
         Store store = new Store(this);
         Store.Person who = number != null ? store.findByNumber(number) : null;
+        if (demo && who == null && !store.people().isEmpty()) who = store.people().get(0);
 
         LinearLayout box = Ui.vertical(this);
         box.setBackgroundColor(Ui.BG);
@@ -155,11 +188,23 @@ public class IncomingCallActivity extends Activity {
         answerLp.topMargin = Ui.dp(this, 24);
         box.addView(answer, answerLp);
 
+        if (demo) {
+            TextView hint = Ui.text(this, "Probe: So sieht es aus, wenn es klingelt.", 18, Ui.MUTED, false);
+            hint.setGravity(Gravity.CENTER);
+            box.addView(hint, Ui.fullWidth(this, 14));
+        }
+
         setContentView(box);
     }
 
     @SuppressWarnings("deprecation")
     private void answer() {
+        if (demo) {
+            android.widget.Toast.makeText(this, "Probe: Jetzt würde das Gespräch beginnen",
+                    android.widget.Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
         TelecomManager tm = getSystemService(TelecomManager.class);
         if (tm != null && checkSelfPermission(Manifest.permission.ANSWER_PHONE_CALLS)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -171,13 +216,4 @@ public class IncomingCallActivity extends Activity {
         finish();
     }
 
-    @SuppressWarnings("deprecation")
-    private boolean isRinging() {
-        try {
-            TelephonyManager t = getSystemService(TelephonyManager.class);
-            return t == null || t.getCallState() == TelephonyManager.CALL_STATE_RINGING;
-        } catch (RuntimeException e) {
-            return true; // Im Zweifel anzeigen; das Ende des Klingelns schließt das Fenster
-        }
-    }
 }

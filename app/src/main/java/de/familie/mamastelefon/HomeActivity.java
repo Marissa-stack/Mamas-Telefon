@@ -84,6 +84,28 @@ public class HomeActivity extends Activity {
     };
     private boolean photoObserverOn;
 
+    // Zusätzlich zur Bedienungshilfe: klingelt es, während die Startseite offen ist,
+    // holt auch die Startseite selbst den großen Annehmen-Bildschirm nach vorne.
+    private String ringingNumber;
+    private final Runnable showIncoming = () -> IncomingCallActivity.launchIfRinging(this, ringingNumber);
+    private final Runnable showIncomingAgain = () -> IncomingCallActivity.launchIfRinging(this, ringingNumber);
+    private final BroadcastReceiver phoneReceiver = new BroadcastReceiver() {
+        @SuppressWarnings("deprecation")
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String state = intent.getStringExtra(android.telephony.TelephonyManager.EXTRA_STATE);
+            if (android.telephony.TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
+                String nr = intent.getStringExtra(android.telephony.TelephonyManager.EXTRA_INCOMING_NUMBER);
+                if (nr != null && !nr.isEmpty()) ringingNumber = nr;
+                handler.removeCallbacks(showIncoming);
+                handler.removeCallbacks(showIncomingAgain);
+                handler.postDelayed(showIncoming, 500);
+                handler.postDelayed(showIncomingAgain, 2000);
+            }
+        }
+    };
+    private boolean phoneReceiverOn;
+
     private final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -118,6 +140,15 @@ public class HomeActivity extends Activity {
         updateBattery(sticky);
         renderPeople();
         renderPhotos();
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+            IntentFilter pf = new IntentFilter(android.telephony.TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(phoneReceiver, pf, Context.RECEIVER_EXPORTED);
+            } else {
+                registerReceiver(phoneReceiver, pf);
+            }
+            phoneReceiverOn = true;
+        }
         if (WhatsAppPhotos.canRead(this)) {
             try {
                 getContentResolver().registerContentObserver(
@@ -143,6 +174,13 @@ public class HomeActivity extends Activity {
         if (photoObserverOn) {
             getContentResolver().unregisterContentObserver(photoObserver);
             photoObserverOn = false;
+        }
+        if (phoneReceiverOn) {
+            try {
+                unregisterReceiver(phoneReceiver);
+            } catch (RuntimeException ignored) {
+            }
+            phoneReceiverOn = false;
         }
     }
 

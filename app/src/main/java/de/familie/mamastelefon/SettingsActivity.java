@@ -678,6 +678,13 @@ public class SettingsActivity extends Activity {
                 "Statt zu wischen reicht dann ein Tipp. Funktioniert, wenn der Lautstärke-Schutz "
                         + "eingeschaltet ist. Ist die Anruferin eine der Kacheln, erscheinen Foto und Name.",
                 16, Ui.MUTED, false), Ui.fullWidth(this, 4));
+        Button demo = Ui.button(this, "Annehmen-Bildschirm: Probe ansehen", Ui.GREY_BUTTON, Ui.TEXT, 18);
+        demo.setOnClickListener(v -> {
+            Intent i = new Intent(this, IncomingCallActivity.class);
+            i.putExtra(IncomingCallActivity.EXTRA_DEMO, true);
+            startActivity(i);
+        });
+        card.addView(demo, Ui.fullWidth(this, 10));
     }
 
     // ------------------------------------------------------------------ Fotos
